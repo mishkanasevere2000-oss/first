@@ -59,7 +59,8 @@ def test_cli_process(tmp_path):
     environment = dict(os.environ, PYTHONPATH=str(ROOT), PYTHONUTF8='1')
     result = subprocess.run(
         [sys.executable, '-m', 'program.main'], input='1\n0\n',
-        text=True, capture_output=True, cwd=tmp_path, env=environment, timeout=10,
+        text=True, encoding='utf-8', capture_output=True,
+        cwd=tmp_path, env=environment, timeout=10,
     )
     assert result.returncode == 0
     assert 'Версия 0.1.0' in result.stdout
