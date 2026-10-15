@@ -1,4 +1,5 @@
 """Transactional schema migrations with verified SQLite backups."""
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
@@ -39,7 +40,7 @@ def create_v1(connection):
 
 
 def validate_v1(connection):
-    with sqlite3.connect(':memory:') as expected:
+    with closing(sqlite3.connect(':memory:')) as expected:
         create_v1(expected)
         if schema_objects(connection) != schema_objects(expected):
             raise DatabaseError('Структура базы несовместима со схемой 1; автоматическое исправление запрещено.')
@@ -77,7 +78,9 @@ def verified_backup(connection, directory, validator):
     os.close(descriptor)
     path = Path(filename)
     try:
-        with sqlite3.connect(path) as target:
+        # sqlite3.Connection.__exit__ handles a transaction, but does not close
+        # the handle. Close before validating or removing the backup on Windows.
+        with closing(sqlite3.connect(path)) as target:
             connection.backup(target)
         with connect(path, readonly=True) as target:
             validator(target)

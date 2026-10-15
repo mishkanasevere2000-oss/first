@@ -338,3 +338,50 @@ def test_cli_bad_reference_is_clear_error(database, tmp_path):
                             capture_output=True, text=True, encoding='utf-8', timeout=15)
     assert result.returncode == 1
     assert 'Ошибка' in result.stdout and 'Traceback' not in result.stderr
+
+
+@pytest.mark.parametrize('reject_backup', [False, True])
+def test_backup_closes_all_owned_sqlite_connections(database, tmp_path, monkeypatch, reject_backup):
+    """A real open SQLite handle blocks unlink on Windows, even after with exits."""
+    original_connect = sqlite3.connect
+    owned = []
+
+    class TrackedConnection(sqlite3.Connection):
+        closed = False
+
+        def close(self):
+            try:
+                super().close()
+            finally:
+                self.closed = True
+
+    def tracked_connect(*args, **kwargs):
+        kwargs['factory'] = TrackedConnection
+        connection = original_connect(*args, **kwargs)
+        owned.append(connection)
+        return connection
+
+    with connect(database) as source:
+        monkeypatch.setattr(sqlite3, 'connect', tracked_connect)
+
+        def validator(connection):
+            validate_database(connection)
+            if reject_backup:
+                raise DatabaseError('Rejected backup')
+
+        try:
+            if reject_backup:
+                with pytest.raises(DatabaseError, match='Rejected backup'):
+                    verified_backup(source, tmp_path / 'copies', validator)
+                assert list((tmp_path / 'copies').iterdir()) == []
+            else:
+                backup = verified_backup(source, tmp_path / 'copies', validator)
+                assert backup.is_file()
+            assert owned
+            assert all(connection.closed for connection in owned)
+            for connection in owned:
+                with pytest.raises(sqlite3.ProgrammingError):
+                    connection.execute('SELECT 1')
+        finally:
+            for connection in owned:
+                connection.close()
