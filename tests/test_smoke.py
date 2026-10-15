@@ -20,7 +20,7 @@ def test_import_has_no_filesystem_side_effects(tmp_path, monkeypatch):
 def test_version_and_menu():
     from program.main import build_menu
     from program.version import __version__
-    assert __version__ == '0.1.0'
+    assert __version__ == '0.2.0'
     menu = build_menu()
     assert f'Версия {__version__}' in menu
     assert 'Финансовый анализатор' in menu
@@ -63,7 +63,8 @@ def test_cli_process(tmp_path):
         cwd=tmp_path, env=environment, timeout=10,
     )
     assert result.returncode == 0
-    assert 'Версия 0.1.0' in result.stdout
+    from program.version import __version__
+    assert f'Версия {__version__}' in result.stdout
     assert 'Ещё не реализовано.' in result.stdout
     assert 'Выход.' in result.stdout
     assert result.stderr == ''
