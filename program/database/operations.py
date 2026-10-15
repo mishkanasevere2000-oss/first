@@ -77,7 +77,7 @@ class Store:
             raise ValueError('Недопустимый статус.')
         self._set_status(entity, identifier, status)
 
-    def add_operation(self, *, id, import_id, bank, account_id, operation_date,
+    def _validated_operation(self, *, id, import_id, bank, account_id, operation_date,
                       description, amount_kopecks, direction, **optional):
         allowed = {'processing_date', 'mcc', 'counterparty', 'bank_operation_type',
                    'balance_after_kopecks', 'source_row', 'source_data', 'bank_transaction_id'}
@@ -97,10 +97,43 @@ class Store:
                       amount_kopecks=amount_kopecks, direction=direction, **optional)
         if 'source_data' in values and values['source_data'] is not None:
             values['source_data'] = as_json(values['source_data'])
+        return values
+
+    def _insert_operation(self, values):
+        self.connection.execute(
+            f"INSERT INTO operations ({','.join(values)}) VALUES ({','.join('?' for _ in values)})", tuple(values.values()))
+        self._audit('CREATE', 'operations', values['id'], None, self.get('operations', values['id']))
+
+    def add_operation(self, **data):
+        values = self._validated_operation(**data)
         with transaction(self.connection):
+            self._insert_operation(values)
+
+    def add_first_bank_import(self, identifier, filename, bank, parser_name, parser_version, operations):
+        """Stage 2: one fully validated file, only into an empty database."""
+        identifier = require_text(identifier, 'id')
+        filename = require_text(filename, 'filename')
+        bank = require_text(bank, 'bank')
+        parser_name = require_text(parser_name, 'parser_name')
+        parser_version = require_text(parser_version, 'parser_version')
+        values = [self._validated_operation(import_id=identifier, bank=bank, **data) for data in operations]
+        if not values:
+            raise ValueError('Нет операций для записи.')
+        with transaction(self.connection):
+            if (self.connection.execute('SELECT 1 FROM operations LIMIT 1').fetchone()
+                    or self.connection.execute('SELECT 1 FROM imports LIMIT 1').fetchone()):
+                raise DatabaseError('Этап 2: импорт разрешён только в пустую базу. '
+                                    'Повторные и пересекающиеся выписки будут поддержаны на этапе 3.')
             self.connection.execute(
-                f"INSERT INTO operations ({','.join(values)}) VALUES ({','.join('?' for _ in values)})", tuple(values.values()))
-            self._audit('CREATE', 'operations', id, None, self.get('operations', id))
+                'INSERT INTO imports(id,filename,bank,parser_name,parser_version,status,source_count,new_count,repeated_count) '
+                'VALUES (?,?,?,?,?,?,?,?,?)',
+                (identifier, filename, bank, parser_name, parser_version, 'PENDING', len(values), 0, 0))
+            for row in values:
+                self._insert_operation(row)
+            self.connection.execute("UPDATE imports SET status='SUCCESS',new_count=? WHERE id=?", (len(values), identifier))
+            self._audit('BANK_IMPORT', 'imports', identifier, None,
+                        {'parser_name': parser_name, 'parser_version': parser_version, 'count': len(values)})
+        return len(values)
 
     def create_project(self, identifier, name, start_date=None, end_date=None):
         for value in (start_date, end_date):

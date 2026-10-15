@@ -14,3 +14,10 @@ finance.db-*
 # Local user reference data; only empty templates belong in Git.
 config/categories.xlsx
 config/own_accounts.xlsx
+
+# Private banking sources and extracted text must never be published.
+input/*
+!input/.gitkeep
+archive/**
+!archive/statements/
+!archive/statements/.gitkeep

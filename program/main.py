@@ -19,7 +19,7 @@ OPTIONS = (
 def build_menu() -> str:
     lines = [TITLE, f"Версия {__version__}"]
     lines.extend(
-        f"{number}. {label} [ещё не реализовано]"
+        f"{number}. {label}" + (" [первый PDF-импорт]" if number == 1 else " [ещё не реализовано]")
         for number, label in enumerate(OPTIONS, start=1)
     )
     lines.append("0. Выход")
@@ -37,7 +37,10 @@ def main() -> int:
         if choice == "0":
             print("Выход.")
             return 0
-        if choice in {str(number) for number in range(1, len(OPTIONS) + 1)}:
+        if choice == "1":
+            from program.ui.console import import_first_pdf
+            import_first_pdf(PROJECT_ROOT)
+        elif choice in {str(number) for number in range(2, len(OPTIONS) + 1)}:
             print("Ещё не реализовано.\n")
         else:
             print("Неизвестный пункт. Выберите номер из меню.\n")
