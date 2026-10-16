@@ -8,6 +8,8 @@ from typing import Callable
 
 from .connection import DEFAULT_DATABASE, DatabaseError, connect, transaction
 from .schema import SCHEMA_VERSION, STATEMENTS
+from .schema_v2 import STATEMENTS_V2
+from program.processing.deduplication import attach_identity
 
 
 def read_version(connection):
@@ -56,14 +58,51 @@ class Migration:
     validate: Callable
 
 
-MIGRATIONS = (Migration(1, create_v1, validate_v1),)
+def create_v2(connection):
+    for statement in STATEMENTS_V2:
+        connection.execute(statement)
+    # Existing banking records, IDs and decisions are preserved byte for byte.
+    for row in connection.execute('SELECT * FROM operations ORDER BY rowid').fetchall():
+        attach_identity(connection, dict(row))
+
+
+def validate_v2(connection):
+    with closing(sqlite3.connect(':memory:')) as expected:
+        create_v1(expected)
+        create_v2(expected)
+        if schema_objects(connection) != schema_objects(expected):
+            raise DatabaseError('Структура базы несовместима со схемой 2.')
+    if read_version(connection) != 2:
+        raise DatabaseError('Ожидается схема 2.')
+    check_integrity(connection)
+    if connection.execute('SELECT count(*) FROM operations').fetchone()[0] != connection.execute(
+            'SELECT count(*) FROM operation_identities').fetchone()[0]:
+        raise DatabaseError('Не все операции имеют идентичность для поиска повторов.')
+    if connection.execute(
+        "SELECT 1 FROM source_files f JOIN imports i ON i.id=f.first_import_id "
+        "WHERE i.status!='SUCCESS' OR i.sha256!=f.sha256 OR i.source_count!=f.source_count LIMIT 1"
+    ).fetchone():
+        raise DatabaseError('Нарушена история исходных файлов.')
+    if connection.execute(
+        "SELECT 1 FROM imports i WHERE status='SUCCESS' AND sha256 IS NOT NULL AND "
+        "(NOT EXISTS(SELECT 1 FROM source_files f WHERE f.sha256=i.sha256) "
+        "OR source_count!=new_count+repeated_count "
+        "OR source_count!=(SELECT count(*) FROM import_observations o WHERE o.import_id=i.id) "
+        "OR new_count!=(SELECT count(*) FROM import_observations o WHERE o.import_id=i.id AND is_new=1)) LIMIT 1"
+    ).fetchone():
+        raise DatabaseError('Счётчики загрузки не совпадают с её наблюдениями.')
+
+
+
+MIGRATIONS = (Migration(1, create_v1, validate_v1), Migration(2, create_v2, validate_v2))
 
 
 def validate_database(connection):
     version = read_version(connection)
     if version != SCHEMA_VERSION:
-        raise DatabaseError(f'Версия базы {version} не поддерживается программой (ожидается {SCHEMA_VERSION}).')
-    validate_v1(connection)
+        raise DatabaseError(f'Версия базы {version} не поддерживается программой (ожидается {SCHEMA_VERSION}). '
+                            'Для старой базы выполните init: обновление создаёт проверенный backup.')
+    MIGRATIONS[version-1].validate(connection)
     return version
 
 
@@ -123,7 +162,10 @@ def migrate(connection, *, migrations=MIGRATIONS, backup_dir=None, new=False):
 def initialize(path=DEFAULT_DATABASE):
     path = Path(path).resolve()
     if path.exists():
-        with connect(path, readonly=True) as connection:
+        with connect(path) as connection:
+            from .connection import PROJECT_ROOT
+            backup_dir = (PROJECT_ROOT if path == DEFAULT_DATABASE else path.parent) / 'backup'
+            migrate(connection, backup_dir=backup_dir)
             validate_database(connection)
         return False
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,3 +179,26 @@ def initialize(path=DEFAULT_DATABASE):
     except BaseException:
         path.unlink(missing_ok=True)
         raise
+
+
+def copy_database(source, destination):
+    """Verified SQLite copy; never overwrite either an existing destination or source."""
+    destination = Path(destination).resolve()
+    with connect(source, readonly=True) as original:
+        version = read_version(original)
+        if version < 1 or version > len(MIGRATIONS):
+            raise DatabaseError('Неизвестная версия исходной базы.')
+        validator = MIGRATIONS[version-1].validate
+        validator(original)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with destination.open('xb'):
+            pass
+        try:
+            with closing(sqlite3.connect(destination)) as target:
+                original.backup(target)
+            with connect(destination, readonly=True) as target:
+                validator(target)
+        except BaseException:
+            destination.unlink(missing_ok=True)
+            raise
+    return version

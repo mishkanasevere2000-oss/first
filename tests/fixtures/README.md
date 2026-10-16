@@ -12,3 +12,10 @@ DejaVu Sans Mono font. ReportLab is not needed to install or run the application
 or its tests. The normal tests exercise actual PDF extraction using pypdf.
 
 Never put real statements or extracted customer text in this directory.
+
+`legacy_stage2_synthetic.db` was created with the released v0.3.0 Python code
+using the same synthetic PDF, plus an explicitly synthetic manual decision and
+rule. It is a schema-1 compatibility fixture, never a copy of a real bank database.
+It verifies migrations and preservation of original IDs/decisions/rule versions.
+`tests/pdf_variants.py` generates shorter, longer and re-encoded synthetic PDF
+variants at test time using pypdf; no additional dependency is required.

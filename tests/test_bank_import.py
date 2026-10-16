@@ -16,8 +16,17 @@ from program.importers.models import StatementError, bank_date, kopecks
 from program.importers.parsers.sber_credit_pdf_v1 import parse_pages
 from program.importers.service import format_kopecks, import_statement, preview_lines
 
-FIXTURE = Path(__file__).parent / 'fixtures' / 'sber_credit_synthetic.pdf'
-TEXT = FIXTURE.with_suffix('.txt')
+ORIGINAL_FIXTURE = Path(__file__).parent / 'fixtures' / 'sber_credit_synthetic.pdf'
+FIXTURE = ORIGINAL_FIXTURE
+TEXT = ORIGINAL_FIXTURE.with_suffix('.txt')
+
+
+@pytest.fixture(autouse=True)
+def private_source_copy(tmp_path, monkeypatch):
+    # Import now moves its source: never pass the tracked fixture itself.
+    local = tmp_path / 'source_fixture.pdf'
+    shutil.copyfile(ORIGINAL_FIXTURE, local)
+    monkeypatch.setattr(sys.modules[__name__], 'FIXTURE', local)
 
 
 @pytest.fixture
@@ -148,11 +157,13 @@ def test_empty_scan_encrypted_and_invalid_files(tmp_path):
 def test_import_records_every_fact_and_no_classification(database):
     source_before = FIXTURE.read_bytes()
     statement = read_statement(FIXTURE)
-    assert import_statement(statement, FIXTURE, database) == 4
-    assert FIXTURE.read_bytes() == source_before
+    result = import_statement(statement, FIXTURE, database)
+    assert result.new_count == 4 and result.repeated_count == 0
+    assert not FIXTURE.exists()
+    assert result.archive_path.read_bytes() == source_before
     assert counts(database) == (1, 4, 5, 0)
     with connect(database, readonly=True) as connection:
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
         imported = dict(connection.execute('SELECT * FROM imports').fetchone())
         assert (imported['status'], imported['source_count'], imported['new_count']) == ('SUCCESS', 4, 4)
         assert (imported['parser_name'], imported['parser_version']) == ('sber_credit_pdf', '1')
@@ -171,13 +182,17 @@ def test_import_records_every_fact_and_no_classification(database):
             assert 'Пример раздела' not in actual['source_data']
 
 
-def test_repeat_refuses_without_modification(database):
+def test_repeat_adds_zero_and_keeps_original_records(database):
     statement = read_statement(FIXTURE)
     import_statement(statement, FIXTURE, database)
-    before = database.read_bytes()
-    with pytest.raises(DatabaseError, match='пустую базу'):
-        import_statement(statement, FIXTURE, database)
-    assert database.read_bytes() == before
+    with connect(database,readonly=True) as connection:
+        before = [tuple(row) for row in connection.execute('SELECT * FROM operations ORDER BY id')]
+    shutil.copyfile(ORIGINAL_FIXTURE,FIXTURE)
+    result = import_statement(statement,FIXTURE,database)
+    assert result.new_count == 0 and result.repeated_count == 4 and result.known_file
+    with connect(database,readonly=True) as connection:
+        assert [tuple(row) for row in connection.execute('SELECT * FROM operations ORDER BY id')] == before
+        assert connection.execute('SELECT count(*) FROM imports').fetchone()[0] == 2
 
 
 def test_sql_failure_rolls_back_whole_import(database, monkeypatch):
@@ -185,7 +200,7 @@ def test_sql_failure_rolls_back_whole_import(database, monkeypatch):
     monkeypatch.setattr(module, 'uuid4', lambda: SimpleNamespace(hex='duplicate'))
     with pytest.raises(sqlite3.IntegrityError):
         import_statement(read_statement(FIXTURE), FIXTURE, database)
-    assert counts(database) == (0, 0, 0, 0)
+    assert counts(database) == (1, 0, 1, 0)
 
 
 def test_invalid_operation_is_rejected_before_write(database):
@@ -193,7 +208,7 @@ def test_invalid_operation_is_rejected_before_write(database):
     broken = replace(statement.operations[1], amount_kopecks=1.25)
     with pytest.raises(ValueError):
         import_statement(replace(statement, operations=(statement.operations[0], broken)), FIXTURE, database)
-    assert counts(database) == (0, 0, 0, 0)
+    assert counts(database) == (1, 0, 1, 0)
 
 
 def test_cli_preview_import_and_failed_parse(database, tmp_path):
@@ -209,15 +224,16 @@ def test_cli_preview_import_and_failed_parse(database, tmp_path):
     unconfirmed = run('import', FIXTURE, '--database', database)
     assert unconfirmed.returncode != 0 and counts(database) == (0, 0, 0, 0)
     written = run('import', FIXTURE, '--database', database, '--confirm')
-    assert written.returncode == 0 and 'Сохранено операций: 4.' in written.stdout
+    assert written.returncode == 0 and 'Новых операций: 4.' in written.stdout
+    shutil.copyfile(ORIGINAL_FIXTURE,FIXTURE)
     repeat = run('import', FIXTURE, '--database', database, '--confirm')
-    assert repeat.returncode == 1 and 'пустую базу' in repeat.stdout
-    assert counts(database) == (1, 4, 5, 0)
+    assert repeat.returncode == 0 and 'Новых операций: 0.' in repeat.stdout
+    assert counts(database) == (2, 4, 6, 0)
     broken = tmp_path / 'broken.pdf'
     broken.write_bytes(b'broken')
     rejected = run('import', broken, '--database', database, '--confirm')
     assert rejected.returncode == 1 and 'Traceback' not in rejected.stderr
-    assert counts(database) == (1, 4, 5, 0)
+    assert counts(database) == (3, 4, 7, 0)
 
 
 def test_menu_empty_input_leaves_files_unchanged(tmp_path, monkeypatch, capsys):
@@ -226,8 +242,8 @@ def test_menu_empty_input_leaves_files_unchanged(tmp_path, monkeypatch, capsys):
     answers = iter(['1', '0'])
     monkeypatch.setattr('builtins.input', lambda _: next(answers))
     assert main.main() == 0
-    assert 'Поместите одну PDF' in capsys.readouterr().out
-    assert list(tmp_path.iterdir()) == []
+    assert 'Поместите PDF' in capsys.readouterr().out
+    assert sorted(path.name for path in tmp_path.iterdir()) == ['source_fixture.pdf']
 
 
 def test_menu_cancel_does_not_create_database(tmp_path, monkeypatch, capsys):
@@ -248,13 +264,15 @@ def test_menu_confirm_then_repeat_and_multiple_files(tmp_path, monkeypatch, caps
     shutil.copyfile(FIXTURE, tmp_path / 'input' / 'test.pdf')
     monkeypatch.setattr('builtins.input', lambda _: 'ДА')
     import_first_pdf(tmp_path)
-    assert 'Сохранено операций: 4' in capsys.readouterr().out
+    assert 'Новых операций: 4' in capsys.readouterr().out
+    for name in ('copy1.pdf','copy2.pdf'):
+        shutil.copyfile(FIXTURE,tmp_path / 'input' / name)
     import_first_pdf(tmp_path)
-    assert 'пустую базу' in capsys.readouterr().out
-    assert counts(database) == (1, 4, 5, 0)
-    shutil.copyfile(FIXTURE, tmp_path / 'input' / 'second.pdf')
-    import_first_pdf(tmp_path)
-    assert 'ровно одна' in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert 'Найдено PDF-файлов: 2' in output
+    assert output.count('Новых операций: 0') == 2
+    assert counts(database) == (3,4,7,0)
+    assert list((tmp_path / 'input').iterdir()) == []
 
 
 def test_description_whitespace_normalized_but_original_lines_retained(pages):

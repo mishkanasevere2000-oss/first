@@ -41,7 +41,7 @@ def test_category_import_repeat_and_audit(connection, tmp_path):
     assert import_reference(connection, path, 'categories') == 0
     assert connection.execute('SELECT count(*) FROM categories').fetchone()[0] == 2
     assert connection.execute('SELECT count(*) FROM audit_log').fetchone()[0] == 2
-    assert validate_database(connection) == 1
+    assert validate_database(connection) == 2
 
 
 @pytest.mark.parametrize('rows', [
@@ -179,7 +179,7 @@ def test_reference_update_has_verified_backup(connection, tmp_path):
     files = list((tmp_path / 'copies').glob('*.db'))
     assert len(files) == 1
     with connect(files[0], readonly=True) as backup:
-        assert validate_database(backup) == 1
+        assert validate_database(backup) == 2
         assert Store(backup).get('categories', 'root')['name'] == 'Пример'
     assert import_reference(connection, updated, 'categories', backup_dir=tmp_path / 'copies') == 0
     assert len(list((tmp_path / 'copies').glob('*.db'))) == 1

@@ -1,6 +1,6 @@
 """Schema 1: banking facts and analytical decisions have separate storage."""
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 STATEMENTS = (
     """CREATE TABLE schema_metadata (

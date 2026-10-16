@@ -1,5 +1,7 @@
 """Read a text PDF once, then detect a registered bank format from its content."""
 from io import BytesIO
+from dataclasses import replace
+import hashlib
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -12,9 +14,14 @@ from .parsers import sber_credit_pdf_v1
 def read_statement(path):
     path = Path(path)
     if path.suffix.lower() != '.pdf':
-        raise StatementError('На этапе 2 поддерживается только PDF-выписка кредитной карты Сбера.')
+        raise StatementError('Сейчас поддерживается только PDF-выписка кредитной карты Сбера.')
+    return read_statement_bytes(path.read_bytes(), suffix=path.suffix)
+
+
+def read_statement_bytes(source, *, suffix='.pdf'):
+    if suffix.lower() != '.pdf':
+        raise StatementError('Поддерживается только PDF-выписка кредитной карты Сбера.')
     try:
-        source = path.read_bytes()
         if not source.startswith(b'%PDF-'):
             raise StatementError('Файл не является PDF.')
         reader = PdfReader(BytesIO(source), strict=True)
@@ -29,5 +36,5 @@ def read_statement(path):
     if not pages or not all(page and page.strip() for page in pages):
         raise StatementError('В PDF нет читаемого текста на всех страницах. Сканы пока не поддерживаются.')
     if sber_credit_pdf_v1.matches(pages[0]):
-        return sber_credit_pdf_v1.parse_pages(pages)
+        return replace(sber_credit_pdf_v1.parse_pages(pages), source_sha256=hashlib.sha256(source).hexdigest())
     raise StatementError('Банк или формат PDF не распознан. Импорт не выполнен.')

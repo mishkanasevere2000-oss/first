@@ -19,7 +19,7 @@ OPTIONS = (
 def build_menu() -> str:
     lines = [TITLE, f"Версия {__version__}"]
     lines.extend(
-        f"{number}. {label}" + (" [первый PDF-импорт]" if number == 1 else " [ещё не реализовано]")
+        f"{number}. {label}" + (" [PDF-импорт]" if number == 1 else " [ещё не реализовано]")
         for number, label in enumerate(OPTIONS, start=1)
     )
     lines.append("0. Выход")

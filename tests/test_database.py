@@ -39,12 +39,13 @@ def operation(store, identifier='o1', **changes):
 
 def test_initialize_reopen_and_schema(database):
     with connect(database, readonly=True) as connection:
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
         assert connection.execute('PRAGMA foreign_keys').fetchone()[0] == 1
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert tables == {'schema_metadata', 'imports', 'categories', 'own_accounts', 'projects',
                           'operations', 'rules', 'rule_versions', 'classifications', 'manual_overrides',
-                          'operation_link_groups', 'operation_link_members', 'audit_log'}
+                          'operation_link_groups', 'operation_link_members', 'audit_log',
+                          'source_files', 'operation_identities', 'import_observations'}
         columns = {row[1] for row in connection.execute('PRAGMA table_info(operations)')}
         assert 'currency' not in columns and 'bank_category' not in columns
         for table in tables - {'schema_metadata'}:
@@ -218,10 +219,10 @@ def second_migration(fail=False):
         if fail:
             raise RuntimeError('Injected migration failure')
     def validate(connection):
-        assert read_version(connection) == 2
+        assert read_version(connection) == 3
         connection.execute('SELECT id FROM test_new_table').fetchall()
         check_integrity(connection)
-    return (*MIGRATIONS, Migration(2, apply, validate))
+    return (*MIGRATIONS, Migration(3, apply, validate))
 
 
 def test_successful_migration_backup_and_repeat(database, tmp_path):
@@ -229,10 +230,10 @@ def test_successful_migration_backup_and_repeat(database, tmp_path):
         Store(connection).create_project('p1', 'Original')
         migrations = second_migration()
         backup = migrate(connection, migrations=migrations, backup_dir=tmp_path / 'backups')
-        assert read_version(connection) == 2
+        assert read_version(connection) == 3
         assert migrate(connection, migrations=migrations) is None
     with connect(backup, readonly=True) as connection:
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
         assert Store(connection).get('projects', 'p1')['name'] == 'Original'
 
 
@@ -241,13 +242,13 @@ def test_failed_migration_rolls_back_version_schema_and_data(database, tmp_path)
         Store(connection).create_project('p1', 'Original')
         with pytest.raises(RuntimeError):
             migrate(connection, migrations=second_migration(fail=True), backup_dir=tmp_path / 'backups')
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
         assert Store(connection).get('projects', 'p1')['name'] == 'Original'
         assert connection.execute("SELECT name FROM sqlite_master WHERE name='test_new_table'").fetchone() is None
     backups = list((tmp_path / 'backups').glob('*.db'))
     assert len(backups) == 1
     with connect(backups[0], readonly=True) as connection:
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
 
 
 def test_backup_failure_blocks_migration(database, tmp_path, monkeypatch):
@@ -258,7 +259,7 @@ def test_backup_failure_blocks_migration(database, tmp_path, monkeypatch):
     with connect(database) as connection:
         with pytest.raises(OSError):
             migrate(connection, migrations=second_migration(), backup_dir=tmp_path)
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
 
 
 def test_invalid_backup_removed(database, tmp_path):
@@ -275,7 +276,7 @@ def test_initial_migration_once(database):
         assert migrate(connection) is None
         with pytest.raises(DatabaseError):
             migrate(connection, new=True)
-        assert validate_database(connection) == 1
+        assert validate_database(connection) == 2
 
 
 def test_check_missing_database_never_creates_file(tmp_path):

@@ -42,6 +42,8 @@ class BankOperation:
     operation_time: str
     authorization_code: str
     description_lines: tuple[str, ...]
+    bank_transaction_id: str | None = None
+    mcc: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,7 @@ class Statement:
     outgoing_kopecks: int
     operations: tuple[BankOperation, ...]
     warnings: tuple[str, ...]
+    source_sha256: str | None = None
 
     @property
     def incoming_count(self):

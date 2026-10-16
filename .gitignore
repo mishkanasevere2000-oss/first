@@ -21,3 +21,8 @@ input/*
 archive/**
 !archive/statements/
 !archive/statements/.gitkeep
+
+# Any local SQLite database is private; keep only the synthetic legacy fixture.
+*.db
+*.db-*
+!tests/fixtures/legacy_stage2_synthetic.db
