@@ -59,7 +59,7 @@ class ImportLedger:
                         observed['source_data']=json.loads(observed['source_data'])
                     self.connection.execute('INSERT INTO import_observations VALUES (?,?,?,?,?,?)',
                         (identifier,index,matched_id,record.get('source_row'),as_json(observed),int(is_new)))
-                bank_folder = {'sber_credit_pdf': 'sberbank', 'sber_debit_pdf': 'sberbank', 'ozon_pdf': 'ozonbank'}[parser_name]
+                bank_folder = {'sber_credit_pdf': 'sberbank', 'sber_debit_pdf': 'sberbank', 'ozon_pdf': 'ozonbank', 'vtb_card_pdf': 'vtb'}[parser_name]
                 relative=f"{metadata['period_start'][:4]}/{bank_folder}/{sha256}.pdf"
                 self.connection.execute('INSERT INTO source_files VALUES (?,?,?,?,?,?,?,?)',
                     (sha256,identifier,count,relative,pending,'PENDING',None,as_json(metadata)))

@@ -8,7 +8,7 @@ from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
 from .models import StatementError
-from .parsers import sber_credit_pdf_v1, sber_debit_pdf_v1, ozon_pdf_v1
+from .parsers import sber_credit_pdf_v1, sber_debit_pdf_v1, ozon_pdf_v1, vtb_card_pdf_v1
 
 
 def read_statement(path):
@@ -35,7 +35,7 @@ def read_statement_bytes(source, *, suffix='.pdf'):
         raise StatementError('Не удалось прочитать структуру PDF.') from error
     if not pages or not all(page and page.strip() for page in pages):
         raise StatementError('В PDF нет читаемого текста на всех страницах. Сканы пока не поддерживаются.')
-    for parser in (sber_credit_pdf_v1, sber_debit_pdf_v1, ozon_pdf_v1):
+    for parser in (sber_credit_pdf_v1, sber_debit_pdf_v1, ozon_pdf_v1, vtb_card_pdf_v1):
         if parser.matches(pages[0]):
             return replace(parser.parse_pages(pages), source_sha256=hashlib.sha256(source).hexdigest())
     raise StatementError('Банк или формат PDF не распознан. Импорт не выполнен.')

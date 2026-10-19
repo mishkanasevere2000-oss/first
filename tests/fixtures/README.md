@@ -32,3 +32,10 @@ They exercise two indistinguishable purchases, a wrapped description, two
 distinct dates and the debit layout's superscript/table headings. The PDF
 was generated with ReportLab and the same DejaVu font; test-time PDF variants
 use only pypdf. None of the fixture content comes from a customer statement.
+
+`vtb_synthetic.txt` and `vtb_synthetic.pdf` are invented four-page fixtures
+with a fictional all-twos SKS, all-threes common receiving account, TEST-only
+descriptions, two dates, separate time lines and five invented operations.
+The synthetic negative balances are not customer balances. ReportLab with
+the same DejaVu font generated the PDF; runtime tests use pypdf only.
+Shorter/re-encoded variants verify the time-aware identity and archived import.

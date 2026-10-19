@@ -21,7 +21,7 @@ def identity(record):
         facts = [record['operation_date'], record.get('processing_date'),
                  record['amount_kopecks'], record['direction'],
                  ' '.join(record['description'].split()), record.get('mcc'),
-                 data.get('operation_time_moscow'), data.get('authorization_code')]
+                 data.get('operation_time_moscow', data.get('operation_time_local')), data.get('authorization_code')]
     digest = hashlib.sha256(json.dumps(facts, ensure_ascii=False, separators=(',', ':'),
                                       sort_keys=True, allow_nan=False).encode()).hexdigest()
     return bank, account, kind, digest
