@@ -19,3 +19,9 @@ rule. It is a schema-1 compatibility fixture, never a copy of a real bank databa
 It verifies migrations and preservation of original IDs/decisions/rule versions.
 `tests/pdf_variants.py` generates shorter, longer and re-encoded synthetic PDF
 variants at test time using pypdf; no additional dependency is required.
+
+`ozon_synthetic.txt` and `ozon_synthetic.pdf` are independently invented, two-page
+fixtures with an all-zero account, TEST-only descriptions, four fictional
+operations and a wrapped document number. Generated with ReportLab and the
+same DejaVu font; ReportLab remains unnecessary at runtime or in tests.
+Tests create shorter, re-encoded and conflicting variants via pypdf.

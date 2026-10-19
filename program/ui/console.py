@@ -18,7 +18,7 @@ def import_first_pdf(root):
         print(f'Не удалось прочитать input: {error}')
         return
     if not files:
-        print('Поместите PDF-выписку кредитной карты Сбера в папку input. Ничего не импортировано.\n')
+        print('Поместите PDF-выписку кредитной карты Сбера или справку о движении средств Ozon Банка в папку input. Ничего не импортировано.\n')
         return
     print(f'Найдено PDF-файлов: {len(files)}. Каждый файл подтверждается отдельно.')
     for source in files:

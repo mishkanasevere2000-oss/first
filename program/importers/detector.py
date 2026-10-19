@@ -8,19 +8,19 @@ from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
 from .models import StatementError
-from .parsers import sber_credit_pdf_v1
+from .parsers import sber_credit_pdf_v1, ozon_pdf_v1
 
 
 def read_statement(path):
     path = Path(path)
     if path.suffix.lower() != '.pdf':
-        raise StatementError('Сейчас поддерживается только PDF-выписка кредитной карты Сбера.')
+        raise StatementError('Сейчас поддерживаются только PDF-выписки поддерживаемых банков.')
     return read_statement_bytes(path.read_bytes(), suffix=path.suffix)
 
 
 def read_statement_bytes(source, *, suffix='.pdf'):
     if suffix.lower() != '.pdf':
-        raise StatementError('Поддерживается только PDF-выписка кредитной карты Сбера.')
+        raise StatementError('Поддерживаются только PDF-выписки поддерживаемых банков.')
     try:
         if not source.startswith(b'%PDF-'):
             raise StatementError('Файл не является PDF.')
@@ -35,6 +35,7 @@ def read_statement_bytes(source, *, suffix='.pdf'):
         raise StatementError('Не удалось прочитать структуру PDF.') from error
     if not pages or not all(page and page.strip() for page in pages):
         raise StatementError('В PDF нет читаемого текста на всех страницах. Сканы пока не поддерживаются.')
-    if sber_credit_pdf_v1.matches(pages[0]):
-        return replace(sber_credit_pdf_v1.parse_pages(pages), source_sha256=hashlib.sha256(source).hexdigest())
+    for parser in (sber_credit_pdf_v1, ozon_pdf_v1):
+        if parser.matches(pages[0]):
+            return replace(parser.parse_pages(pages), source_sha256=hashlib.sha256(source).hexdigest())
     raise StatementError('Банк или формат PDF не распознан. Импорт не выполнен.')

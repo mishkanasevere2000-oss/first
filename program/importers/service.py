@@ -46,7 +46,9 @@ def operation_records(statement, identifier):
         balance_after_kopecks=row.balance_after_kopecks,
         source_row=f'page={row.page};layout_line={row.line}',
         source_data=dict(parser_name=statement.parser_name, parser_version=statement.parser_version,
-                         operation_time_moscow=row.operation_time, authorization_code=row.authorization_code,
+                         **({'operation_time_moscow': row.operation_time} if row.operation_time_zone == 'Europe/Moscow'
+                            else {'operation_time_local': row.operation_time, 'operation_time_zone': row.operation_time_zone}),
+                         authorization_code=row.authorization_code,
                          description_lines=list(row.description_lines), statement=metadata),
     ) for row in statement.operations]
     return metadata, records

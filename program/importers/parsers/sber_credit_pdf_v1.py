@@ -61,7 +61,7 @@ def parse_pages(pages):
         values = {key: value for key, value in current.items() if key != 'parts'}
         values['description'] = ' '.join(' '.join(current['parts']).split())
         values['description_lines'] = tuple(current['parts'])
-        operations.append(BankOperation(**values))
+        operations.append(BankOperation(**values, operation_time_zone='Europe/Moscow'))
         current = None
 
     for page_number, page in enumerate(pages, start=1):

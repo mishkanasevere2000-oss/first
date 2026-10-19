@@ -59,7 +59,8 @@ class ImportLedger:
                         observed['source_data']=json.loads(observed['source_data'])
                     self.connection.execute('INSERT INTO import_observations VALUES (?,?,?,?,?,?)',
                         (identifier,index,matched_id,record.get('source_row'),as_json(observed),int(is_new)))
-                relative=f"{metadata['period_start'][:4]}/sberbank/{sha256}.pdf"
+                bank_folder = {'sber_credit_pdf': 'sberbank', 'ozon_pdf': 'ozonbank'}[parser_name]
+                relative=f"{metadata['period_start'][:4]}/{bank_folder}/{sha256}.pdf"
                 self.connection.execute('INSERT INTO source_files VALUES (?,?,?,?,?,?,?,?)',
                     (sha256,identifier,count,relative,pending,'PENDING',None,as_json(metadata)))
             self.connection.execute("UPDATE imports SET bank=?,sha256=?,parser_name=?,parser_version=?,status='SUCCESS',"

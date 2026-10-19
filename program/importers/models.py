@@ -32,11 +32,11 @@ def bank_date(text):
 @dataclass(frozen=True)
 class BankOperation:
     operation_date: str
-    processing_date: str
+    processing_date: str | None
     description: str
     amount_kopecks: int
     direction: str
-    balance_after_kopecks: int
+    balance_after_kopecks: int | None
     page: int
     line: int
     operation_time: str
@@ -44,6 +44,7 @@ class BankOperation:
     description_lines: tuple[str, ...]
     bank_transaction_id: str | None = None
     mcc: str | None = None
+    operation_time_zone: str | None = None
 
 
 @dataclass(frozen=True)
