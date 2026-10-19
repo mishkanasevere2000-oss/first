@@ -39,3 +39,10 @@ descriptions, two dates, separate time lines and five invented operations.
 The synthetic negative balances are not customer balances. ReportLab with
 the same DejaVu font generated the PDF; runtime tests use pypdf only.
 Shorter/re-encoded variants verify the time-aware identity and archived import.
+
+`rshb_synthetic.txt` and `rshb_synthetic.pdf` contain five invented operations,
+an all-fours fictional account, TEST-only descriptions and dummy **0001 cards.
+Two identical repayments must stay distinct. The two-page format intentionally
+has no independent bank turnover totals or printed page numbers; tests verify
+that a balanced subset is never described as independently certified complete.
+Generated with ReportLab/DejaVu; test-time variants require only pypdf.

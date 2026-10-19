@@ -22,6 +22,8 @@ def identity(record):
                  record['amount_kopecks'], record['direction'],
                  ' '.join(record['description'].split()), record.get('mcc'),
                  data.get('operation_time_moscow', data.get('operation_time_local')), data.get('authorization_code')]
+        if data.get('card_number_mask') is not None:
+            facts.append(data['card_number_mask'])
     digest = hashlib.sha256(json.dumps(facts, ensure_ascii=False, separators=(',', ':'),
                                       sort_keys=True, allow_nan=False).encode()).hexdigest()
     return bank, account, kind, digest

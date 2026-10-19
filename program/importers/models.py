@@ -45,6 +45,7 @@ class BankOperation:
     bank_transaction_id: str | None = None
     mcc: str | None = None
     operation_time_zone: str | None = None
+    card_number_mask: str | None = None
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class Statement:
     operations: tuple[BankOperation, ...]
     warnings: tuple[str, ...]
     source_sha256: str | None = None
+    bank_turnover_totals_present: bool = True
 
     @property
     def incoming_count(self):

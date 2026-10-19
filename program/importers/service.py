@@ -36,7 +36,8 @@ def operation_records(statement, identifier):
                     opening_balance_kopecks=statement.opening_balance_kopecks,
                     closing_balance_kopecks=statement.closing_balance_kopecks,
                     incoming_kopecks=statement.incoming_kopecks, outgoing_kopecks=statement.outgoing_kopecks,
-                    warnings=list(statement.warnings))
+                    warnings=list(statement.warnings),
+                    bank_turnover_totals_present=statement.bank_turnover_totals_present)
     records = [dict(
         id=uuid4().hex, import_id=identifier, bank=statement.bank,
         account_id=statement.account_id, operation_date=row.operation_date,
@@ -49,6 +50,7 @@ def operation_records(statement, identifier):
                          **({'operation_time_moscow': row.operation_time} if row.operation_time_zone == 'Europe/Moscow'
                             else {'operation_time_local': row.operation_time, 'operation_time_zone': row.operation_time_zone}),
                          authorization_code=row.authorization_code,
+                         **({'card_number_mask': row.card_number_mask} if row.card_number_mask else {}),
                          description_lines=list(row.description_lines), statement=metadata),
     ) for row in statement.operations]
     return metadata, records
@@ -167,7 +169,11 @@ def preview_lines(statement):
              f'Прочитано операций: {len(statement.operations)}.',
              f'Пополнения по выписке: {statement.incoming_count}, сумма {format_kopecks(statement.incoming_kopecks)} ₽.',
              f'Списания по выписке: {statement.outgoing_count}, сумма {format_kopecks(statement.outgoing_kopecks)} ₽.',
-             'Суммы строк совпадают с итогами банка. Это банковские обороты, а не расчёт доходов и расходов.']
+             ('Суммы строк совпадают с итогами банка. Это банковские обороты, а не расчёт доходов и расходов.'
+              if statement.bank_turnover_totals_present else
+              'Суммы пополнений/списаний рассчитаны по строкам: отдельных итогов банка нет. Изменение остатка сверено.')]
+    if not statement.bank_turnover_totals_present:
+        lines = [line.replace('по выписке:', 'по строкам:') for line in lines]
     lines.extend(f'ПРЕДУПРЕЖДЕНИЕ: {warning}' for warning in statement.warnings)
     return lines
 
