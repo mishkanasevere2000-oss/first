@@ -38,7 +38,7 @@ def test_actual_pdf_extraction_and_format_detection():
     assert len(statement.warnings)==1
     assert read_statement(FIXTURES/'sber_credit_synthetic.pdf').parser_name=='sber_credit_pdf'
     with pytest.raises(StatementError):credit.parse_pages(pages())
-    with pytest.raises(StatementError):debit.parse_pages((FIXTURES/'sber_credit_synthetic.txt').read_text().split('\f'))
+    with pytest.raises(StatementError):debit.parse_pages((FIXTURES/'sber_credit_synthetic.txt').read_text(encoding='utf-8').split('\f'))
 
 
 @pytest.mark.parametrize(('before','after'),[
