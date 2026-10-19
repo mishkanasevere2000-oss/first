@@ -1,4 +1,4 @@
-"""One text PDF layout: Sber credit-card account statement, no categorization."""
+"""Sber RUB rows shared by credit/debit layouts; credit format entry point."""
 import re
 
 from ..models import BankOperation, MONEY, Statement, StatementError, bank_date, kopecks
@@ -14,8 +14,8 @@ def clean(text):
     return text.replace('\xa0', ' ').replace('\u202f', ' ').replace('−', '-')
 
 
-def matches(first_page):
-    return (TITLE in first_page and 'www.sberbank.ru' in first_page
+def matches(first_page, *, title=TITLE):
+    return (title in first_page and 'www.sberbank.ru' in first_page
             and 'Заказано в СберБанк Онлайн' in first_page)
 
 
@@ -27,8 +27,13 @@ def one_match(pattern, text, message):
 
 
 def parse_pages(pages):
-    if not pages or not matches(pages[0]):
-        raise StatementError('Формат не соответствует sber_credit_pdf_v1.')
+    return parse_sber_pages(pages)
+
+
+def parse_sber_pages(pages, *, title=TITLE, amount_header='СУММА В РУБЛЯХ',
+                     parser_name='sber_credit_pdf', debit=False):
+    if not pages or not matches(pages[0], title=title):
+        raise StatementError(f'Формат не соответствует {parser_name} v1.')
     pages = [clean(page) for page in pages]
     first = pages[0]
     if not re.search(r'Валюта\s+Российский рубль\b', first):
@@ -69,22 +74,26 @@ def parse_pages(pages):
             pagination = one_match(r'Страница (\d+) из (\d+)', page, f'Страница {page_number}: не прочитана нумерация.')
             if tuple(map(int, pagination.groups())) != (page_number, len(pages)):
                 raise StatementError('Неполный документ или нарушен порядок страниц.')
-            if TITLE not in page:
+            if title not in page:
                 raise StatementError(f'Страница {page_number}: другой тип документа.')
         lines = page.splitlines()
         headers = [(number, line) for number, line in enumerate(lines)
                    if 'ДАТА ОПЕРАЦИИ (МСК)' in line and 'КАТЕГОРИЯ' in line
-                   and 'СУММА В РУБЛЯХ' in line and 'ОСТАТОК СРЕДСТВ' in line]
+                   and amount_header in line and 'ОСТАТОК СРЕДСТВ' in line]
         if len(headers) != 1:
             raise StatementError(f'Страница {page_number}: неизвестные заголовки таблицы.')
         header_number, header = headers[0]
         description_column = header.index('КАТЕГОРИЯ')
-        amount_column = header.index('СУММА В РУБЛЯХ')
+        amount_column = header.index(amount_header)
         ended = False
+        page_has_rows = False
         for index in range(header_number + 1, len(lines)):
             line = lines[index]
             stripped = line.strip()
             if not stripped or stripped.startswith(('Дата обработки', 'и код авторизации')):
+                continue
+            if debit and not page_has_rows and (stripped in {'1', '2'} or re.fullmatch(
+                    r'Описание операции\s+Сумма в валюте\s+В валюте счёта', stripped)):
                 continue
             if stripped.startswith(('Продолжение на следующей странице', 'Дата формирования документа')):
                 ended = True
@@ -95,6 +104,7 @@ def parse_pages(pages):
                     continue
             match = ROW.fullmatch(line)
             if match:
+                page_has_rows = True
                 finish()
                 operation_date, time, _bank_category, amount, balance = match.groups()
                 hours, minutes = map(int, time.split(':'))
@@ -140,5 +150,5 @@ def parse_pages(pages):
     if any(not period_start <= row.operation_date <= period_end for row in operations):
         warnings.append('Есть операции с датой совершения вне периода шапки. '
                         'Дата совершения сохранена отдельно от даты обработки; строки не отфильтрованы.')
-    return Statement('Сбербанк', account, 'sber_credit_pdf', '1', period_start, period_end,
+    return Statement('Сбербанк', account, parser_name, '1', period_start, period_end,
                      opening, closing, incoming, outgoing, tuple(operations), tuple(warnings))

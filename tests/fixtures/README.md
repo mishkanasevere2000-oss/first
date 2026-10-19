@@ -25,3 +25,10 @@ fixtures with an all-zero account, TEST-only descriptions, four fictional
 operations and a wrapped document number. Generated with ReportLab and the
 same DejaVu font; ReportLab remains unnecessary at runtime or in tests.
 Tests create shorter, re-encoded and conflicting variants via pypdf.
+
+`sber_debit_synthetic.txt` and `sber_debit_synthetic.pdf` contain five invented
+operations with TEST-only descriptions and an all-ones fictional account.
+They exercise two indistinguishable purchases, a wrapped description, two
+distinct dates and the debit layout's superscript/table headings. The PDF
+was generated with ReportLab and the same DejaVu font; test-time PDF variants
+use only pypdf. None of the fixture content comes from a customer statement.
