@@ -50,6 +50,8 @@ def operation_records(statement, identifier):
                          **({'operation_time_moscow': row.operation_time} if row.operation_time_zone == 'Europe/Moscow'
                             else {'operation_time_local': row.operation_time, 'operation_time_zone': row.operation_time_zone}),
                          authorization_code=row.authorization_code,
+                         **({'bank_operation_code': row.bank_operation_code} if row.bank_operation_code is not None else {}),
+                         **({'operation_date_source': row.operation_date_source} if row.operation_date_source is not None else {}),
                          **({'card_number_mask': row.card_number_mask} if row.card_number_mask else {}),
                          **({'processing_time_local': row.processing_time} if row.processing_time is not None else {}),
                          description_lines=list(row.description_lines), statement=metadata),

@@ -39,7 +39,7 @@ class BankOperation:
     balance_after_kopecks: int | None
     page: int
     line: int
-    operation_time: str
+    operation_time: str | None
     authorization_code: str
     description_lines: tuple[str, ...]
     bank_transaction_id: str | None = None
@@ -47,6 +47,8 @@ class BankOperation:
     operation_time_zone: str | None = None
     card_number_mask: str | None = None
     processing_time: str | None = None
+    bank_operation_code: str | None = None
+    operation_date_source: str | None = None
 
 
 @dataclass(frozen=True)

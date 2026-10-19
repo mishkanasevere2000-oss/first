@@ -24,6 +24,8 @@ def identity(record):
                  data.get('operation_time_moscow', data.get('operation_time_local')), data.get('authorization_code')]
         if data.get('card_number_mask') is not None:
             facts.append(data['card_number_mask'])
+        if data.get('bank_operation_code') is not None:
+            facts.append(['bank_operation_code', data['bank_operation_code']])
     digest = hashlib.sha256(json.dumps(facts, ensure_ascii=False, separators=(',', ':'),
                                       sort_keys=True, allow_nan=False).encode()).hexdigest()
     return bank, account, kind, digest

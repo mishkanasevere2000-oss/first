@@ -56,3 +56,10 @@ ReportLab/DejaVu; test-time variants require only pypdf. No customer data.
 The T-Bank tests also split the invented two-page PDF into three pages with
 a standalone summary, and replace the all-fives account with an all-sixes
 fictional account. Generated at test time with pypdf; no customer fixtures.
+
+`alfa_synthetic.txt` and `alfa_synthetic.pdf` contain six invented operations,
+a fictional all-sevens account, dummy 000000++++++0001 card, TEST merchants
+and invented signer Т.Т. Тестов. Repeated/partial CRD codes are not unique IDs.
+The PDF uses invoked footer forms without their own font resources; both
+footers are in every page's resources to test ignoring uninvoked forms.
+Generated once with ReportLab/DejaVu and pypdf; runtime needs only pypdf.
