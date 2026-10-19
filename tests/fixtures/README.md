@@ -46,3 +46,9 @@ Two identical repayments must stay distinct. The two-page format intentionally
 has no independent bank turnover totals or printed page numbers; tests verify
 that a balanced subset is never described as independently certified complete.
 Generated with ReportLab/DejaVu; test-time variants require only pypdf.
+
+`tbank_synthetic.txt` and `tbank_synthetic.pdf` contain five invented operations,
+a fictional all-fives account, dummy 0001 card suffix and TEST-only descriptions.
+They cover both times, a fee row without a card and absent header balances.
+Rows use decimal dots and bank turnover summaries use commas. Generated with
+ReportLab/DejaVu; test-time variants require only pypdf. No customer data.

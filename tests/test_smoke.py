@@ -20,7 +20,7 @@ def test_import_has_no_filesystem_side_effects(tmp_path, monkeypatch):
 def test_version_and_menu():
     from program.main import build_menu
     from program.version import __version__
-    assert __version__ == '0.8.0'
+    assert __version__ == '0.9.0'
     menu = build_menu()
     assert f'Версия {__version__}' in menu
     assert 'Финансовый анализатор' in menu

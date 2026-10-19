@@ -46,6 +46,7 @@ class BankOperation:
     mcc: str | None = None
     operation_time_zone: str | None = None
     card_number_mask: str | None = None
+    processing_time: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,8 +57,8 @@ class Statement:
     parser_version: str
     period_start: str
     period_end: str
-    opening_balance_kopecks: int
-    closing_balance_kopecks: int
+    opening_balance_kopecks: int | None
+    closing_balance_kopecks: int | None
     incoming_kopecks: int
     outgoing_kopecks: int
     operations: tuple[BankOperation, ...]

@@ -51,6 +51,7 @@ def operation_records(statement, identifier):
                             else {'operation_time_local': row.operation_time, 'operation_time_zone': row.operation_time_zone}),
                          authorization_code=row.authorization_code,
                          **({'card_number_mask': row.card_number_mask} if row.card_number_mask else {}),
+                         **({'processing_time_local': row.processing_time} if row.processing_time is not None else {}),
                          description_lines=list(row.description_lines), statement=metadata),
     ) for row in statement.operations]
     return metadata, records
