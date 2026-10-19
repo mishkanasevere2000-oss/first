@@ -126,3 +126,68 @@ def test_overlap_two_times_repeats_null_balances_and_mixed_banks(tmp_path):
         assert c.execute('SELECT count(*) FROM operations').fetchone()[0]==28
         assert c.execute('SELECT count(*) FROM classifications').fetchone()[0]==0
         validate_database(c)
+
+
+def separate_summary(target, *, other_account=False):
+    """Split the invented fixture into two table pages and a summary-only page."""
+    writer=PdfWriter(clone_from=PdfReader(FIXTURES/'tbank_synthetic.pdf'))
+    writer.add_page(PdfReader(FIXTURES/'tbank_synthetic.pdf').pages[-1])
+    text=(FIXTURES/'tbank_synthetic.txt').read_text(encoding='utf-8').split('\f')[-1].splitlines()
+    summary_index=next(i for i,line in enumerate(text) if line.startswith('Пополнения:'))
+    footer_index=next(i for i,line in enumerate(text) if line.startswith('АО «ТБанк»'))
+    for page_index,page in enumerate(writer.pages):
+        content=page.get_contents();operations=[];text_index=-1
+        for values,operator in content.operations:
+            if operator==b'Tj':
+                text_index+=1
+                if page_index==1 and summary_index<=text_index<footer_index:continue
+                if page_index==2 and text_index<summary_index:continue
+                raw=values[0].original_bytes
+                if page_index==2 and text_index==len(text)-1:raw=b'3'
+                if other_account:raw=raw.replace(b'55555555555555555555',b'66666666666666666666')
+                values=[ByteStringObject(raw)]
+            operations.append((values,operator))
+        content.operations=operations;page.replace_contents(content)
+    writer.write(target)
+
+
+def test_summary_only_page_actual_pdf(tmp_path):
+    source=tmp_path/'summary.pdf';separate_summary(source)
+    s=read_statement(source)
+    old=read_statement(FIXTURES/'tbank_synthetic.pdf')
+    assert len(s.operations)==len(old.operations)==5
+    assert s.operations==old.operations
+    assert (s.incoming_kopecks,s.outgoing_kopecks)==(110000,5500)
+    assert len(PdfReader(source).pages)==3
+
+
+@pytest.mark.parametrize('damage',['number','order','missing','totals','prefix','late_row','currency','footer'])
+def test_summary_only_page_rejects_damage(tmp_path,damage):
+    source=tmp_path/'summary.pdf';separate_summary(source)
+    pages=[p.extract_text(extraction_mode='layout') for p in PdfReader(source).pages]
+    if damage=='number':pages[-1]=pages[-1].rstrip()[:-1]+'4'
+    elif damage=='order':pages[-1]=pages[-1].replace('Пополнения:','TEMP:').replace('Расходы:','Пополнения:').replace('TEMP:','Расходы:')
+    elif damage=='missing':pages.pop()
+    elif damage=='totals':pages[-1]=pages[-1].replace('55,00','54,00')
+    elif damage=='prefix':pages[-1]='UNKNOWN LINE\n'+pages[-1]
+    elif damage=='late_row':pages[-1]=pages[-1].replace('TEST BANK SIGNATURE','03.08.2026 03.08.2026 LATE ROW')
+    elif damage=='currency':pages[-1]=pages[-1].replace('₽','USD')
+    elif damage=='footer':pages[-1]=pages[-1].replace('лицензия Банка России','UNKNOWN')
+    with pytest.raises(StatementError):parse_pages(pages)
+
+
+def test_summary_only_repeats_and_independent_second_account(tmp_path):
+    db=tmp_path/'finance.db';initialize(db)
+    source=tmp_path/'source.pdf';shutil.copyfile(FIXTURES/'tbank_synthetic.pdf',source)
+    assert import_file(source,db).new_count==5
+    with connect(db) as c:original=[tuple(row) for row in c.execute('SELECT * FROM operations ORDER BY id')]
+    separate_summary(source)
+    r=import_file(source,db);assert not r.known_file and (r.new_count,r.repeated_count)==(0,5)
+    separate_summary(source,other_account=True)
+    r=import_file(source,db);assert (r.new_count,r.repeated_count)==(5,0)
+    separate_summary(source,other_account=True)
+    r=import_file(source,db);assert (r.new_count,r.repeated_count)==(0,5)
+    with connect(db) as c:
+        assert c.execute('SELECT count(*) FROM operations').fetchone()[0]==10
+        assert original==[tuple(row) for row in c.execute('SELECT * FROM operations WHERE account_id=? ORDER BY id',('5'*20,))]
+        validate_database(c)

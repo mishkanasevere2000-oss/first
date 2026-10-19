@@ -52,3 +52,7 @@ a fictional all-fives account, dummy 0001 card suffix and TEST-only descriptions
 They cover both times, a fee row without a card and absent header balances.
 Rows use decimal dots and bank turnover summaries use commas. Generated with
 ReportLab/DejaVu; test-time variants require only pypdf. No customer data.
+
+The T-Bank tests also split the invented two-page PDF into three pages with
+a standalone summary, and replace the all-fives account with an all-sixes
+fictional account. Generated at test time with pypdf; no customer fixtures.

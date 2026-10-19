@@ -66,6 +66,16 @@ def parse_pages(pages):
             raise StatementError('Т-Банк: отсутствует банковский колонтитул.')
         headers=[i for i,line in enumerate(lines[:footers[0]]) if all(label in line for label in
                  ('Дата и время','Дата','Сумма в валюте','Сумма операции','Описание','Номер'))]
+        if not headers and number==len(pages) and number>1:
+            summary=[line.strip() for line in lines[:footers[0]] if line.strip()]
+            if (len(summary)<2
+                    or not re.fullmatch(rf'Пополнения:\s+{SUMMARY} ₽',summary[0])
+                    or not re.fullmatch(rf'Расходы:\s+{SUMMARY} ₽',summary[1])):
+                raise StatementError('Т-Банк: неизвестная страница итогов.')
+            if re.search(rf'{DATE}\s+{DATE}', '\n'.join(summary[2:])):
+                raise StatementError('Т-Банк: операции после итогов.')
+            totals_seen=True
+            continue
         if len(headers)!=1:
             raise StatementError('Т-Банк: неизвестный заголовок таблицы.')
         header=headers[0]
