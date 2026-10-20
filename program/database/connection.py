@@ -38,3 +38,16 @@ def transaction(connection):
         if connection.in_transaction:
             connection.execute('ROLLBACK')
         raise
+
+
+@contextmanager
+def read_snapshot(connection):
+    """A consistent read transaction; callers use a read-only connection."""
+    if connection.in_transaction:
+        raise DatabaseError('Вложенный снимок чтения не поддерживается.')
+    connection.execute('BEGIN')
+    try:
+        yield
+    finally:
+        if connection.in_transaction:
+            connection.execute('ROLLBACK')

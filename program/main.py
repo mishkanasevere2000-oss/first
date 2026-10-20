@@ -19,7 +19,7 @@ OPTIONS = (
 def build_menu() -> str:
     lines = [TITLE, f"Версия {__version__}"]
     lines.extend(
-        f"{number}. {label}" + (" [PDF-импорт]" if number == 1 else " [ещё не реализовано]")
+        f"{number}. {label}" + (" [PDF-импорт]" if number == 1 else " [финансовый разбор]" if number == 6 else " [ещё не реализовано]")
         for number, label in enumerate(OPTIONS, start=1)
     )
     lines.append("0. Выход")
@@ -40,6 +40,9 @@ def main() -> int:
         if choice == "1":
             from program.ui.console import import_first_pdf
             import_first_pdf(PROJECT_ROOT)
+        elif choice == "6":
+            from program.ui.finance import control
+            control(PROJECT_ROOT)
         elif choice in {str(number) for number in range(2, len(OPTIONS) + 1)}:
             print("Ещё не реализовано.\n")
         else:

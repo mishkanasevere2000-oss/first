@@ -20,15 +20,15 @@ def test_import_has_no_filesystem_side_effects(tmp_path, monkeypatch):
 def test_version_and_menu():
     from program.main import build_menu
     from program.version import __version__
-    assert __version__ == '0.10.1'
+    assert __version__ == '0.11.0'
     menu = build_menu()
     assert f'Версия {__version__}' in menu
     assert 'Финансовый анализатор' in menu
     assert '0. Выход' in menu
-    assert menu.count('[ещё не реализовано]') == 6
+    assert menu.count('[ещё не реализовано]') == 5
 
 
-@pytest.mark.parametrize('choice', [str(i) for i in range(2, 8)])
+@pytest.mark.parametrize('choice', [str(i) for i in (2, 3, 4, 5, 7)])
 def test_placeholder_changes_no_files(choice, tmp_path, monkeypatch, capsys):
     from program.main import main
     monkeypatch.chdir(tmp_path)

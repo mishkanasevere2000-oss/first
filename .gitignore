@@ -26,3 +26,7 @@ archive/**
 *.db
 *.db-*
 !tests/fixtures/legacy_stage2_synthetic.db
+
+# Private classification rules; publish only empty templates.
+rules/*.json
+!rules/*.template.json
