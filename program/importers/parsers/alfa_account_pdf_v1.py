@@ -6,7 +6,7 @@ from pypdf.generic import NameObject
 from ..models import BankOperation,Statement,StatementError,bank_date,kopecks,MONEY
 
 DATE=r'\d{2}\.\d{2}\.\d{4}'
-ROW=re.compile(rf'^\s*({DATE})\s+([A-Z0-9_]+)\s+(.+?)\s{{2,}}({MONEY}) RUR\s*$')
+ROW=re.compile(rf'^\s*({DATE})\s+([A-Z0-9_]+(?:#[A-Z0-9_]+)?)\s+(.+?)\s{{2,}}({MONEY}) RUR\s*$')
 
 
 def matches(first):

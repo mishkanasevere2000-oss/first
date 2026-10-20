@@ -137,3 +137,33 @@ def test_overlap_repeated_codes_reencoding_and_all_banks(tmp_path):
         assert c.execute('SELECT count(*) FROM operations').fetchone()[0]==34
         assert c.execute('SELECT count(*) FROM classifications').fetchone()[0]==0
         validate_database(c)
+
+
+def test_hash_operation_codes_actual_pdf_and_repeated_nonunique_code(tmp_path):
+    writer=PdfWriter(clone_from=PdfReader(FIXTURES/'alfa_synthetic.pdf'))
+    for page in writer.pages:
+        content=page.get_contents();operations=[]
+        for values,operator in content.operations:
+            if operator==b'Tj':
+                raw=values[0].original_bytes.replace(b'B_TEST1',b'MG01#TEST').replace(b'C_TEST',b'MG01#TEST')
+                values=[ByteStringObject(raw)]
+            operations.append((values,operator))
+        content.operations=operations;page.replace_contents(content)
+    source=tmp_path/'hash_codes.pdf';writer.write(source)
+    s=read_statement(source)
+    rows=[row for row in s.operations if row.bank_operation_code=='MG01#TEST']
+    assert len(rows)==2 and {row.direction for row in rows}=={'IN','OUT'}
+    assert all(row.bank_transaction_id is None and row.operation_date_source=='POSTING_DATE' for row in rows)
+    db=tmp_path/'finance.db';initialize(db)
+    assert import_file(source,db).new_count==6
+    writer.write(source)
+    repeat=import_file(source,db)
+    assert (repeat.new_count,repeat.repeated_count)==(0,6)
+    with connect(db) as c:
+        assert c.execute('SELECT count(*) FROM operations').fetchone()[0]==6
+        validate_database(c)
+
+
+@pytest.mark.parametrize('code',['#TEST','MG01#','MG01##TEST'])
+def test_reject_malformed_hash_operation_code(code):
+    with pytest.raises(StatementError):parse_pages([page.replace('B_TEST1',code) for page in pages()])
