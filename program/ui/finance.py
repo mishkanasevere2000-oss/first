@@ -11,8 +11,12 @@ from program.processing.__main__ import lines
 def control(root):
     database=Path(root)/'database'/'finance.db'
     try:
-        print('1. Проверить базу\n2. Обработать новые операции\n3. Пересчитать историю\n0. Назад')
+        print('\nКонтроль и настройка\n\n1. Проверить базу\n2. Обработать новые операции\n3. Пересчитать историю\n4. Настроить категории и собственные счета\n5. Подтвердить переводы и возвраты\n0. Назад')
         choice=input('Выберите действие: ').strip()
+        print()
+        if choice in {'4','5'}:
+            from .review import run
+            run(root,'references' if choice=='4' else 'links');return
         if choice=='0':return
         if choice=='1':
             with connect(database,readonly=True) as connection:version=validate_database(connection)
@@ -28,7 +32,7 @@ def control(root):
         answer=input('Сохранить показанные изменения? Введите ДА: ').strip().casefold()
         if answer!='да':print('Отменено. База не изменена.');return
         backup=apply(plan,database,confirmed=True)
-        print(f'Решения сохранены. Проверенная резервная копия: {backup}')
+        print(f'\nРешения сохранены. Проверенная резервная копия: {backup}')
         if plan.after['status']!='OK':print('Есть операции, требующие разбора. Это не готовый финансовый отчёт.')
     except (EOFError,KeyboardInterrupt):print('\nДействие отменено.')
     except (DatabaseError,sqlite3.Error,OSError,ValueError) as error:print(f'Действие не выполнено: {error}')

@@ -1,4 +1,4 @@
-"""Консольный каркас; финансовые действия пока отсутствуют."""
+"""Главное меню локального финансового анализатора."""
 from pathlib import Path
 
 from program.version import __version__
@@ -19,7 +19,7 @@ OPTIONS = (
 def build_menu() -> str:
     lines = [TITLE, f"Версия {__version__}"]
     lines.extend(
-        f"{number}. {label}" + (" [PDF-импорт]" if number == 1 else " [финансовый разбор]" if number == 6 else " [ещё не реализовано]")
+        f"{number}. {label}" + (" [PDF-импорт]" if number == 1 else " [финансовый разбор]" if number == 6 else " [ещё не реализовано]" if number in {4, 7} else "")
         for number, label in enumerate(OPTIONS, start=1)
     )
     lines.append("0. Выход")
@@ -28,9 +28,11 @@ def build_menu() -> str:
 
 def main() -> int:
     while True:
+        print("\n" + "─" * 56 + "\n")
         print(build_menu())
         try:
             choice = input("Выберите пункт: ").strip()
+            print()
         except (EOFError, KeyboardInterrupt):
             print("\nВыход.")
             return 0
@@ -40,6 +42,9 @@ def main() -> int:
         if choice == "1":
             from program.ui.console import import_first_pdf
             import_first_pdf(PROJECT_ROOT)
+        elif choice in {"2", "3", "5"}:
+            from program.ui.review import run
+            run(PROJECT_ROOT, {"2": "review", "3": "search", "5": "rules"}[choice])
         elif choice == "6":
             from program.ui.finance import control
             control(PROJECT_ROOT)

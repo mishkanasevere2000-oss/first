@@ -24,7 +24,7 @@ def import_first_pdf(root):
     for source in files:
         preview_complete = False
         try:
-            print(f'Файл: {source.name}')
+            print(f'\n────────────────────────────────────────\nФайл: {source.name}\n')
             statement = read_statement(source)
             preview_complete = True
             for line in preview_lines(statement):
@@ -38,6 +38,7 @@ def import_first_pdf(root):
                 print('Импорт отменён. База не изменена.\n')
                 continue
             result = import_statement(statement, source, root / 'database' / 'finance.db')
+            print()
             for line in result_lines(result):
                 print(line)
         except (StatementError, DatabaseError, sqlite3.Error, OSError, ValueError) as error:

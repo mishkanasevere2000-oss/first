@@ -20,15 +20,15 @@ def test_import_has_no_filesystem_side_effects(tmp_path, monkeypatch):
 def test_version_and_menu():
     from program.main import build_menu
     from program.version import __version__
-    assert __version__ == '0.11.0'
+    assert __version__ == '0.12.0'
     menu = build_menu()
     assert f'Версия {__version__}' in menu
     assert 'Финансовый анализатор' in menu
     assert '0. Выход' in menu
-    assert menu.count('[ещё не реализовано]') == 5
+    assert menu.count('[ещё не реализовано]') == 2
 
 
-@pytest.mark.parametrize('choice', [str(i) for i in (2, 3, 4, 5, 7)])
+@pytest.mark.parametrize('choice', [str(i) for i in (4, 7)])
 def test_placeholder_changes_no_files(choice, tmp_path, monkeypatch, capsys):
     from program.main import main
     monkeypatch.chdir(tmp_path)
@@ -58,7 +58,7 @@ def test_eof_exits(monkeypatch):
 def test_cli_process(tmp_path):
     environment = dict(os.environ, PYTHONPATH=str(ROOT), PYTHONUTF8='1')
     result = subprocess.run(
-        [sys.executable, '-m', 'program.main'], input='2\n0\n',
+        [sys.executable, '-m', 'program.main'], input='4\n0\n',
         text=True, encoding='utf-8', capture_output=True,
         cwd=tmp_path, env=environment, timeout=10,
     )

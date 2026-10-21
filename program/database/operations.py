@@ -198,14 +198,20 @@ class Store:
                                category_id=None, subcategory_id=None, project_id=None, comment):
         require_text(comment, 'comment')
         with transaction(self.connection):
-            before = self.get('classifications', operation_id)
-            previous = self.connection.execute('SELECT id FROM manual_overrides WHERE operation_id=? ORDER BY id DESC LIMIT 1',
-                                               (operation_id,)).fetchone()
-            values = self._decision(operation_type, include_in_report, category_id, subcategory_id, project_id, comment)
-            cursor = self.connection.execute(
-                f"INSERT INTO manual_overrides(operation_id,previous_id,{','.join(values)}) "
-                f"VALUES ({','.join('?' for _ in range(len(values)+2))})", (operation_id, previous[0] if previous else None, *values.values()))
-            values.update(source='MANUAL', manual_override_id=cursor.lastrowid,
-                          related_group_id=None, rule_id=None, rule_version=None)
-            self._save_classification(operation_id, values)
-            self._audit('MANUAL_DECISION', 'classifications', operation_id, before, self.get('classifications', operation_id))
+            self._record_manual_decision(operation_id, operation_type=operation_type, include_in_report=include_in_report,
+                category_id=category_id, subcategory_id=subcategory_id, project_id=project_id, comment=comment)
+
+    def _record_manual_decision(self, operation_id, *, operation_type, include_in_report,
+                                category_id=None, subcategory_id=None, project_id=None, comment):
+        require_text(comment, 'comment')
+        before = self.get('classifications', operation_id)
+        previous = self.connection.execute('SELECT id FROM manual_overrides WHERE operation_id=? ORDER BY id DESC LIMIT 1',
+                                           (operation_id,)).fetchone()
+        values = self._decision(operation_type, include_in_report, category_id, subcategory_id, project_id, comment)
+        cursor = self.connection.execute(
+            f"INSERT INTO manual_overrides(operation_id,previous_id,{','.join(values)}) "
+            f"VALUES ({','.join('?' for _ in range(len(values)+2))})", (operation_id, previous[0] if previous else None, *values.values()))
+        values.update(source='MANUAL', manual_override_id=cursor.lastrowid,
+                      related_group_id=None, rule_id=None, rule_version=None)
+        self._save_classification(operation_id, values)
+        self._audit('MANUAL_DECISION', 'classifications', operation_id, before, self.get('classifications', operation_id))

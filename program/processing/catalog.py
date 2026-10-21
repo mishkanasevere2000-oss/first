@@ -45,14 +45,20 @@ def prepare(connection,records):
     return normalized
 
 
-def install(connection,records,*,confirmed=False,backup_dir):
+def install(connection,records,*,confirmed=False,backup_dir,expected_token=None):
     if confirmed is not True:raise EngineError('Активация/изменение правил требует отдельного подтверждения.')
+    def check_token():
+        if expected_token is not None:
+            from .engine import state_token
+            if state_token(connection)!=expected_token:raise EngineError('База изменилась после просмотра правила.')
+    check_token()
     store=Store(connection);prepared=prepare(connection,records)
     if not any(row['new_version'] or row['status_changed'] for row in prepared):return 0
     # Even an initial mass activation has a verified rollback point.
     verified_backup(connection,backup_dir,validate_database)
     changed=0
     with transaction(connection):
+        check_token()
         prepared=prepare(connection,records)
         repository=FinancialRepository(connection)
         for row in sorted(prepared,key=lambda r:(r['id'],r['version'])):
